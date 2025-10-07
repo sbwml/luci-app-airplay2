@@ -3,6 +3,7 @@
 		"description": "Grant UCI access for luci-app-airplay2",
 		"read": {
 			"file": {
+				"/bin/cat": [ "exec" ],
 				"/proc/asound/cards": [ "read" ]
 			},
 			"ubus": {

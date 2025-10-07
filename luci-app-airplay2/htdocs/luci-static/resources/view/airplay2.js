@@ -41,7 +41,7 @@ function renderStatus(isRunning) {
 }
 
 function getSoundCards() {
-	return callExec('cat', ['/proc/asound/cards']).then(function (res) {
+	return callExec('/bin/cat', ['/proc/asound/cards']).then(function (res) {
 		var content = res && typeof res.stdout === 'string' ? res.stdout : '';
 		var cards = [];
 		if (content) {
