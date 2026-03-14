@@ -12,6 +12,13 @@ var callServiceList = rpc.declare({
 	expect: { '': {} }
 });
 
+var callFileStat = rpc.declare({
+	object: 'file',
+	method: 'stat',
+	params: ['path'],
+	expect: { '': {} }
+});
+
 var callExec = rpc.declare({
 	object: 'file',
 	method: 'exec',
@@ -41,7 +48,7 @@ function renderStatus(isRunning) {
 }
 
 function getSoundCards() {
-	return callExec('/bin/cat', ['/proc/asound/cards']).then(function (res) {
+	var alsaPromise = callExec('/bin/cat', ['/proc/asound/cards']).then(function (res) {
 		var content = res && typeof res.stdout === 'string' ? res.stdout : '';
 		var cards = [];
 		if (content) {
@@ -50,6 +57,7 @@ function getSoundCards() {
 				var match = line.match(/^\s*(\d+)\s+\[[^\]]+\]:\s*(.+)$/);
 				if (match) {
 					cards.push({
+						type: 'alsa',
 						id: match[1],
 						desc: match[2]
 					});
@@ -59,6 +67,32 @@ function getSoundCards() {
 		return cards;
 	}).catch(function (e) {
 		return [];
+	});
+
+	var bluetoothPromise = callFileStat('/usr/bin/bluealsa-aplay').then(function(stat) {
+		if (stat) {
+			return callExec('/usr/bin/bluealsa-aplay', ['-l']).then(function(res) {
+				var devices = [];
+				if (res.code === 0 && res.stdout) {
+					res.stdout.trim().split('\n').forEach(function(line) {
+						if (line.indexOf('audio') !== -1) {
+							var match = line.match(/([0-9A-F]{2}(:[0-9A-F]{2}){5}).*\[([^\]]+)\]/i);
+							if (match) {
+								devices.push({ type: 'bluealsa', id: match[1], desc: match[3] });
+							}
+						}
+					});
+				}
+				return devices;
+			});
+		}
+		return [];
+	}).catch(function(e) {
+		return [];
+	});
+
+	return Promise.all([alsaPromise, bluetoothPromise]).then(function(results) {
+		return results[0].concat(results[1]);
 	});
 }
 
@@ -105,9 +139,14 @@ return view.extend({
 			var soundcardOpt = s.option(form.ListValue, 'alsa_output_device', _('Alsa Output Device'));
 			soundcardOpt.default = '';
 			soundcardOpt.value('', _('default'));
+			soundcardOpt.value('bluealsa', _('Default Bluetooth Audio (BlueALSA)'));
 			if (Array.isArray(cards)) {
 				cards.forEach(function (card) {
-					soundcardOpt.value('hw:' + card.id, card.desc + ' (hw:' + card.id + ')');
+					if (card.type === 'bluealsa') {
+						soundcardOpt.value('bluealsa:DEV=' + card.id, card.desc + ' (' + card.id + ')');
+					} else {
+						soundcardOpt.value('hw:' + card.id, card.desc + ' (hw:' + card.id + ')');
+					}
 				});
 			}
 

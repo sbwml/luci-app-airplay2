@@ -4,7 +4,8 @@
 		"read": {
 			"file": {
 				"/bin/cat": [ "exec" ],
-				"/proc/asound/cards": [ "read" ]
+				"/proc/asound/cards": [ "read" ],
+				"/usr/bin/bluealsa-aplay": [ "exec", "stat" ]
 			},
 			"ubus": {
 				"service": [ "list" ]
